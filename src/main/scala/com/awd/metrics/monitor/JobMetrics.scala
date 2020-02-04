@@ -11,6 +11,7 @@ case class StageVals(appId: String,
                      numOfTasks: Int
                     )
 
+
 case class TaskVals(stageId: Int,
                     taskDuration: Long)
 
@@ -18,6 +19,7 @@ case class AppMetrics(appId: String,
                       numOfStages: Int,
                       appDuration: Long,
                       numOfTasks: Int,
+                      longestStage: String,
                       maxTaskDuration: Long,
                       minTaskDuration: Long,
                       avgTaskDuration: Long
@@ -46,8 +48,6 @@ class JobMetricsRecorder extends SparkListener {
     )
 
     stageMetricsData += eachStageMetrics
-
-    println(s"Check the following: " + stageMetricsData)
   }
 
   override def onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit = {
@@ -61,7 +61,7 @@ class JobMetricsRecorder extends SparkListener {
 
   override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit = {
 
-    val aggStageMetrics: Array[(String, (Int, Long, Int))] = stageMetricsData.groupBy(_.appId).mapValues(x =>
+    val aggAppMetrics: Array[(String, (Int, Long, Int))] = stageMetricsData.groupBy(_.appId).mapValues(x =>
       (
         x.map(_.stageId).size,
         x.map(_.stageDuration).sum,
@@ -69,10 +69,19 @@ class JobMetricsRecorder extends SparkListener {
       )
     ).toArray
 
+    val longestStageDuration = stageMetricsData.map(x =>
+        x.stageDuration
+    ).sorted.last
+
+    val longestStageId = stageMetricsData.filter(_.stageDuration == longestStageDuration).map(x =>
+      x.stageId
+    ).head.toString
+
     val metrics = AppMetrics(appId,
-      aggStageMetrics.head._2._1,
-      aggStageMetrics.head._2._2,
-      aggStageMetrics.head._2._3,
+      aggAppMetrics.head._2._1,
+      aggAppMetrics.head._2._2,
+      aggAppMetrics.head._2._3,
+      s"Stage Id: ${longestStageId} Duration (ms): ${longestStageDuration}",
       stageMax(taskDuration).maxBy(_._2)._2,
       stageMin(taskDuration).minBy(_._2)._2,
       avg(stageAvg(taskDuration))
@@ -81,8 +90,9 @@ class JobMetricsRecorder extends SparkListener {
     val logger = LoggerFactory.getLogger(this.getClass.getName)
 
     logger.warn(s"\n   Application ID: " + metrics.appId +
-      s"\n   Number of Stages: " + metrics.numOfStages +
       s"\n   Application Duration (ms): " + metrics.appDuration +
+      s"\n   Number of Stages: " + metrics.numOfStages +
+      s"\n   Longest Stage: " + metrics.longestStage +
       s"\n   Number of Tasks: " + metrics.numOfTasks +
       s"\n   Longest Task (ms): " + metrics.maxTaskDuration +
       s"\n   Shortest Task (ms): " + metrics.minTaskDuration +
