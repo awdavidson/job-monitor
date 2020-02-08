@@ -8,18 +8,26 @@ class testJobMetrics extends FunSuite
   import spark.implicits._
 
 
-  def randomInt1to100 = scala.util.Random.nextInt(100)+1
+  def randomInt1to100 = scala.util.Random.nextInt(100) + 1
 
-  val df = spark.sparkContext.parallelize(
-    Seq.fill(100){(randomInt1to100,randomInt1to100,randomInt1to100)}
-  ).toDF("A", "B", "C")
+  test("Process for our listener") {
+
+    val df = spark.sparkContext.parallelize(
+      Seq.fill(1000) {
+        (randomInt1to100, randomInt1to100, randomInt1to100)
+      }
+    ).toDF("A", "B", "C")
+
+    val dummy2 = Seq.fill(20) {
+      (randomInt1to100, "Alfie", "Davidson")
+    }.toDF("A", "Forename", "Surname")
+
+    val joinedDF = df.join(dummy2, Seq("A"), "left_outer")
+
+    joinedDF.write.mode("Overwrite").parquet("output/test.parq")
 
 
-  df.show()
+  }
 
-
-  val dummy2 = Seq((10, "Alfie", "Davidson")).toDF("A", "Forename", "Surname")
-
-  df.join(dummy2, Seq("A"), "left_outer").show(10, false)
 
 }
