@@ -12,6 +12,7 @@ trait SparkEnv {
       .config("spark.eventLog.enabled", "true")
       .config("spark.logConf", "true")
       .config("spark.extraListeners", "com.awd.metrics.monitor.JobMetricsRecorder")
+      .config("spark.sql.autoBroadcastJoinThreshold", "-1")
       .getOrCreate()
   }
 
